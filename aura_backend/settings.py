@@ -78,10 +78,10 @@ CORS_ALLOW_ALL_ORIGINS = True # For development only
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'your_db_name',
-        'USER': 'your_postgres_user',
-        'PASSWORD': 'your_password',
-        'HOST': 'localhost',
+        'NAME': 'postgres',
+        'USER': 'omar',
+        'PASSWORD': '12345678',
+        'HOST': 'sensordb.cshii6i2m95z.us-east-1.rds.amazonaws.com',
         'PORT': '5432',
     }
 }

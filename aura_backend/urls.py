@@ -24,6 +24,6 @@ router.register(r'devices', DeviceViewSet)
 router.register(r'telemetry', TelemetryViewSet)
 
 urlpatterns = [
-    path('admin/', admin.site.admin_site.urls),
+    path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
 ]
