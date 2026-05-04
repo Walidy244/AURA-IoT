@@ -23,7 +23,7 @@ export default function HomeScreen() {
 
   // --- API FETCHING ---
   // Ensure this matches your AWS RDS / Django backend endpoint
-  const API_URL = 'http://192.168.56.1/api/telemetry/'; 
+ const API_URL = 'http://10.80.69.94:8000/api/telemetry/'; 
 
   const fetchLatestData = async () => {
     try {

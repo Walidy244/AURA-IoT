@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-&nettg6qaff0dwy$xe%n8fxg@dazy(usll#du^!33cm61!k%rm
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']  # The '*' allows any IP to connect for testing
 
 
 # Application definition
