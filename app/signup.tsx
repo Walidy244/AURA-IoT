@@ -1,19 +1,19 @@
 import { FontAwesome, Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  Dimensions,
-  KeyboardAvoidingView,
-  Linking,
-  Platform,
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    Dimensions,
+    KeyboardAvoidingView,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
@@ -27,16 +27,46 @@ export default function SignupScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  const handleSignup = () => {
-  const url =
-    "https://aura-auth.auth.us-east-1.amazoncognito.com/signup" +
-    "?client_id=YOUR_CLIENT_ID" +
-    "&redirect_uri=myapp://callback" +
-    "&response_type=code" +
-    "&scope=openid+email+profile";
+  const getApiBase = () => {
+    if (Platform.OS === 'web') return 'http://localhost:8000/';
+    return 'http://10.1.1.49:8000/';
+  };
 
-  Linking.openURL(url);
-};
+  const handleSignup = async () => {
+    if (password !== confirmPassword) {
+      alert('Passwords do not match');
+      return;
+    }
+
+    try {
+      const base = getApiBase();
+      const res = await fetch(base + 'api/register/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: email, password }),
+      });
+
+      const text = await res.text();
+      let body: any = text;
+      try { body = JSON.parse(text); } catch (e) {}
+
+      if (!res.ok) {
+        const msg = (body && body.detail) ? body.detail : text || `HTTP ${res.status}`;
+        throw new Error(msg);
+      }
+
+      alert((body && body.detail) ? body.detail : 'Registration successful.');
+      if (body && body.token) {
+        await AsyncStorage.setItem('authToken', body.token);
+        router.replace('/');
+      } else {
+        router.replace('/login');
+      }
+    } catch (err) {
+      console.error('Signup failed', err);
+      alert('Signup failed: ' + (err as any).message);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>

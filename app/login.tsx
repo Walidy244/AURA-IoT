@@ -1,19 +1,20 @@
 import { FontAwesome, Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Linking from "expo-linking";
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  Dimensions,
-  KeyboardAvoidingView,
-  Platform,
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    Dimensions,
+    KeyboardAvoidingView,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
@@ -25,16 +26,45 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-const handleLogin = () => {
-  const cognitoUrl =
-    "https://us-east-1ilot3xgz7.auth.us-east-1.amazoncognito.com/login" +
-    "?client_id=3pi274k5pr67284m2f2a173pai" +
-    "&response_type=code" +
-    "&scope=openid+email+profile" +
-    "&redirect_uri=myapp://callback";
+  const getApiBase = () => {
+    if (Platform.OS === 'web') return 'http://localhost:8000/';
+    return 'http://10.80.69.94:8000/';
+  };
 
-  Linking.openURL(cognitoUrl);
-};
+  const handleLogin = async () => {
+    try {
+      const base = getApiBase();
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+      const res = await fetch(base + 'api/login/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: email, password }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeout);
+
+      const text = await res.text();
+      let body: any = text;
+      try { body = JSON.parse(text); } catch (e) {}
+
+      if (!res.ok) {
+        const msg = (body && body.detail) ? body.detail : text || `HTTP ${res.status}`;
+        throw new Error(msg);
+      }
+
+      if (body && body.token) {
+        await AsyncStorage.setItem('authToken', body.token);
+      }
+
+      router.replace('/');
+    } catch (err) {
+      console.error('Login failed', err);
+      alert('Login failed: ' + (err as any).message);
+    }
+  };
 
 useEffect(() => {
   const handleDeepLink = (event: any) => {

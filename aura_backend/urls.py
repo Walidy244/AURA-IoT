@@ -17,13 +17,26 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from iot_manager.views import DeviceViewSet, TelemetryViewSet
+from iot_manager.views import (
+    UserViewSet,
+    DeviceViewSet,
+    LogViewSet,
+    PermissionViewSet,
+    AlertViewSet,
+    register_api,
+    login_api,
+)
 
 router = DefaultRouter()
+router.register(r'users', UserViewSet)
 router.register(r'devices', DeviceViewSet)
-router.register(r'telemetry', TelemetryViewSet)
+router.register(r'logs', LogViewSet)
+router.register(r'permissions', PermissionViewSet)
+router.register(r'alerts', AlertViewSet)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
+    path('api/register/', register_api),
+    path('api/login/', login_api),
 ]
