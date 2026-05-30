@@ -1,17 +1,18 @@
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
-  Modal,
-  Platform,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    Modal,
+    Platform,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from "react-native";
+import { getLogsApiUrl } from './api';
 
 type TelemetryLog = {
   log_id: number;
@@ -34,8 +35,25 @@ type HouseLog = {
 
 type DailyPowerData = {
   dateLabel: string;
+  dateKey: string;
   avgPower: number;
+  peakPower: number;
+  readings: number;
 };
+
+type AlertItem = {
+  id: string;
+  title: string;
+  message: string;
+  severity: "warning" | "critical" | "info";
+  timestamp: string | null;
+};
+
+const TEMP_HIGH_C = 30;
+const HUMIDITY_LOW = 30;
+const HUMIDITY_HIGH = 70;
+const LOAD_POWER_HIGH_W = 1000;
+const SOLAR_LOW_W = 10;
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -49,15 +67,13 @@ export default function HomeScreen() {
   const [apiError, setApiError] = useState<string | null>(null);
   const [authToken, setAuthToken] = useState<string | null>(null);
   const latestLog = telemetryLogs[0];
+  const alertHistory = useMemo(() => buildAlertHistory(telemetryLogs), [telemetryLogs]);
+  const activeAlerts = useMemo(() => buildAlertsForLog(latestLog), [latestLog]);
+  const solarStatus = useMemo(() => getSolarStatus(latestLog), [latestLog]);
+  const todayEnergy = dailyPowerData[dailyPowerData.length - 1];
 
   const getApiUrl = () => {
-    if (Platform.OS === "web") {
-      return "http://localhost:8000/api/logs/";
-    }
-
-    // Use the local network IP when running on a physical device.
-    // Change this to your machine's LAN IP if needed.
-    return "http://10.1.1.49:8000/api/logs/";
+    return getLogsApiUrl();
   };
 
   const buildHouseLogs = (latest: TelemetryLog | undefined, logs: TelemetryLog[]): HouseLog[] => {
@@ -95,7 +111,7 @@ export default function HomeScreen() {
   };
 
   const computeDailyPowerData = (logs: TelemetryLog[]): DailyPowerData[] => {
-    const byDate: Record<string, { sum: number; count: number }> = {};
+    const byDate: Record<string, { sum: number; count: number; peak: number }> = {};
 
     logs.forEach((log) => {
       if (!log.timestamp || log.power_load === null) {
@@ -106,21 +122,106 @@ export default function HomeScreen() {
       const value = Number(log.power_load);
 
       if (!byDate[dayKey]) {
-        byDate[dayKey] = { sum: 0, count: 0 };
+        byDate[dayKey] = { sum: 0, count: 0, peak: 0 };
       }
 
       byDate[dayKey].sum += value;
       byDate[dayKey].count += 1;
+      byDate[dayKey].peak = Math.max(byDate[dayKey].peak, value);
     });
 
     return Object.entries(byDate)
       .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
       .map(([date, stats]) => ({
+        dateKey: date,
         dateLabel: new Date(date).toLocaleDateString(undefined, { weekday: "short" }),
         avgPower: stats.count ? stats.sum / stats.count : 0,
+        peakPower: stats.peak,
+        readings: stats.count,
       }))
       .slice(-7);
   };
+
+  function buildAlertsForLog(log: TelemetryLog | undefined): AlertItem[] {
+    if (!log) {
+      return [];
+    }
+
+    const alerts: AlertItem[] = [];
+    const loadPower = log.power_load ?? null;
+
+    if (log.temperature !== null && log.temperature > TEMP_HIGH_C) {
+      alerts.push({
+        id: `temp-${log.log_id}`,
+        title: "High temperature",
+        message: `${formatValue(log.temperature)} C is above the ${TEMP_HIGH_C} C limit.`,
+        severity: "critical",
+        timestamp: log.timestamp,
+      });
+    }
+
+    if (log.humidity !== null && (log.humidity < HUMIDITY_LOW || log.humidity > HUMIDITY_HIGH)) {
+      alerts.push({
+        id: `humidity-${log.log_id}`,
+        title: "Humidity alert",
+        message: `${formatValue(log.humidity)}% is outside the ${HUMIDITY_LOW}-${HUMIDITY_HIGH}% range.`,
+        severity: "warning",
+        timestamp: log.timestamp,
+      });
+    }
+
+    if (loadPower !== null && loadPower > LOAD_POWER_HIGH_W) {
+      alerts.push({
+        id: `load-${log.log_id}`,
+        title: "Power load warning",
+        message: `${formatValue(loadPower)} W is above the ${LOAD_POWER_HIGH_W} W limit.`,
+        severity: "critical",
+        timestamp: log.timestamp,
+      });
+    }
+
+    return alerts;
+  }
+
+  function buildAlertHistory(logs: TelemetryLog[]): AlertItem[] {
+    return logs
+      .flatMap((log) => buildAlertsForLog(log))
+      .slice(0, 8);
+  }
+
+  function getSolarStatus(log: TelemetryLog | undefined) {
+    const powerSolar = log?.power_solar ?? null;
+
+    if (powerSolar === null || powerSolar === undefined) {
+      return {
+        label: "No solar data",
+        detail: "Waiting for solar readings.",
+        color: "#AAA",
+      };
+    }
+
+    if (powerSolar <= 0) {
+      return {
+        label: "Not producing",
+        detail: "Solar output is currently 0 W.",
+        color: "#ff6b6b",
+      };
+    }
+
+    if (powerSolar < SOLAR_LOW_W) {
+      return {
+        label: "Low production",
+        detail: `Solar output is below ${SOLAR_LOW_W} W.`,
+        color: "#FFD700",
+      };
+    }
+
+    return {
+      label: "Producing",
+      detail: `${formatValue(powerSolar)} W is being generated.`,
+      color: "#4CAF50",
+    };
+  }
 
   const fetchLatestData = async () => {
     try {
@@ -169,17 +270,17 @@ export default function HomeScreen() {
     setDailyPowerData(computeDailyPowerData(telemetryLogs));
   }, [telemetryLogs, latestLog]);
 
-  const formatValue = (value: number | null | undefined, fallback = "--") => (
-    value === null || value === undefined ? fallback : Number(value).toFixed(2)
-  );
+  function formatValue(value: number | null | undefined, fallback = "--") {
+    return value === null || value === undefined ? fallback : Number(value).toFixed(2);
+  }
 
-  const formatTimestamp = (timestamp: string | null | undefined) => {
+  function formatTimestamp(timestamp: string | null | undefined) {
     if (!timestamp) {
       return "--";
     }
 
     return new Date(timestamp).toLocaleString();
-  };
+  }
 
   const SensorBox = ({ title, icon, value, unit }: any) => (
     <TouchableOpacity
@@ -207,6 +308,25 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.divider} />
+
+        <View style={[
+          styles.statusBanner,
+          { borderColor: activeAlerts.length > 0 ? "#ff6b6b" : "#4CAF50" },
+        ]}>
+          <Ionicons
+            name={activeAlerts.length > 0 ? "warning-outline" : "checkmark-circle-outline"}
+            size={22}
+            color={activeAlerts.length > 0 ? "#ff6b6b" : "#4CAF50"}
+          />
+          <View style={styles.statusBannerText}>
+            <Text style={styles.statusBannerTitle}>
+              {activeAlerts.length > 0 ? `${activeAlerts.length} warning${activeAlerts.length > 1 ? "s" : ""} detected` : "All readings normal"}
+            </Text>
+            <Text style={styles.statusBannerDetail}>
+              {activeAlerts[0]?.message ?? "Latest sensor readings are within the normal range."}
+            </Text>
+          </View>
+        </View>
 
         <View style={styles.grid}>
           <SensorBox
@@ -236,6 +356,37 @@ export default function HomeScreen() {
             value={formatValue(latestLog?.power_solar)}
             unit=" W"
           />
+        </View>
+
+        <Text style={styles.sectionTitle}>SOLAR STATUS</Text>
+        <View style={styles.statsCard}>
+          <View style={styles.statsHeader}>
+            <Text style={styles.statsLabel}>SOLAR PRODUCTION</Text>
+            <Text style={[styles.statsValue, { color: solarStatus.color }]}>{solarStatus.label}</Text>
+          </View>
+          <Text style={styles.updatedText}>{solarStatus.detail}</Text>
+        </View>
+
+        <Text style={styles.sectionTitle}>ALERT HISTORY</Text>
+        <View style={styles.statsCard}>
+          {alertHistory.length > 0 ? (
+            alertHistory.map((alert) => (
+              <View key={alert.id} style={styles.alertItem}>
+                <Ionicons
+                  name={alert.severity === "critical" ? "alert-circle-outline" : "warning-outline"}
+                  size={20}
+                  color={alert.severity === "critical" ? "#ff6b6b" : "#FFD700"}
+                />
+                <View style={styles.alertText}>
+                  <Text style={styles.alertTitle}>{alert.title}</Text>
+                  <Text style={styles.alertMessage}>{alert.message}</Text>
+                  <Text style={styles.activityTime}>{formatTimestamp(alert.timestamp)}</Text>
+                </View>
+              </View>
+            ))
+          ) : (
+            <Text style={styles.emptyText}>No alerts detected.</Text>
+          )}
         </View>
 
         <Text style={styles.sectionTitle}>LATEST CURRENTS</Text>
@@ -274,6 +425,20 @@ export default function HomeScreen() {
             <Text style={[styles.statsLabel, { color: "#FFF" }]}>Average daily load usage</Text>
             <Text style={styles.statsValue}>{dailyPowerData.length} days</Text>
           </View>
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryItem}>
+              <Text style={styles.statsLabel}>TODAY AVG</Text>
+              <Text style={styles.statsValue}>{formatValue(todayEnergy?.avgPower)} W</Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.statsLabel}>TODAY PEAK</Text>
+              <Text style={styles.statsValue}>{formatValue(todayEnergy?.peakPower)} W</Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.statsLabel}>READINGS</Text>
+              <Text style={styles.statsValue}>{todayEnergy?.readings ?? 0}</Text>
+            </View>
+          </View>
 
           <View style={styles.powerChartContainer}>
             {dailyPowerData.length > 0 ? (
@@ -291,24 +456,6 @@ export default function HomeScreen() {
             ) : (
               <Text style={styles.emptyText}>No power usage data available yet.</Text>
             )}
-          </View>
-        </View>
-
-        <Text style={styles.sectionTitle}>DEVICE STATUS</Text>
-        <View style={styles.statsCard}>
-          <View style={styles.statsHeader}>
-            <Text style={styles.statsLabel}>ESP32 LINK</Text>
-            <Text style={[styles.statsValue, { color: latestLog ? "#4CAF50" : "#FFD700" }]}>
-              {latestLog ? "ACTIVE" : "WAITING"}
-            </Text>
-          </View>
-          <View style={styles.chartContainer}>
-            {[35, 60, 85, 55, 95, 45, 75].map((val, index) => (
-              <View key={index} style={styles.barColumn}>
-                <View style={[styles.bar, { height: val }]} />
-                <Text style={styles.barLabel}>{["M", "T", "W", "T", "F", "S", "S"][index]}</Text>
-              </View>
-            ))}
           </View>
         </View>
 
@@ -335,11 +482,11 @@ export default function HomeScreen() {
               <Text style={styles.modalValue}>{selectedSensor?.value}</Text>
               <Text style={styles.modalUnit}>{selectedSensor?.unit}</Text>
             </View>
-            <Text style={styles.modalStatus}>Status: Live from AWS RDS</Text>
+            <Text style={styles.modalStatus}>Live data</Text>
 
             <View style={styles.modalDivider} />
             <Text style={styles.modalDescription}>
-              This data is being synchronized in real-time from your PostgreSQL database schema.
+              Latest reading being transmitted.
             </Text>
           </View>
         </View>
@@ -349,6 +496,14 @@ export default function HomeScreen() {
         <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab("Dashboard")}>
           <Ionicons name="grid" size={24} color={activeTab === "Dashboard" ? "#FFD700" : "#555"} />
           <Text style={[styles.navText, { color: activeTab === "Dashboard" ? "#FFD700" : "#555" }]}>DASHBOARD</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => router.push("/iot-control")}
+        >
+          <Ionicons name="bulb-outline" size={24} color="#555" />
+          <Text style={[styles.navText, { color: "#555" }]}>Led</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -380,6 +535,29 @@ const styles = StyleSheet.create({
   welcomeTitle: { fontSize: 28, color: "#FFFFFF", fontWeight: "300" },
   userNameText: { fontSize: 28, color: "#FFD700", fontWeight: "300" },
   divider: { height: 1, backgroundColor: "#FFD700", width: 40, marginVertical: 20 },
+  statusBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 18,
+    backgroundColor: "rgba(255, 215, 0, 0.04)",
+  },
+  statusBannerText: { flex: 1 },
+  statusBannerTitle: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "700",
+    letterSpacing: 0.8,
+  },
+  statusBannerDetail: {
+    color: "#AAA",
+    fontSize: 12,
+    marginTop: 4,
+    lineHeight: 17,
+  },
   grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", marginBottom: 20 },
   gridBox: {
     width: "48%",
@@ -432,12 +610,45 @@ const styles = StyleSheet.create({
   statsLabel: { color: "#888", fontSize: 10 },
   statsValue: { color: "#FFD700", fontSize: 16, fontWeight: "bold" },
   updatedText: { color: "#AAA", fontSize: 12 },
+  summaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 18,
+    gap: 10,
+  },
+  summaryItem: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "rgba(255, 215, 0, 0.18)",
+    borderRadius: 10,
+    padding: 10,
+  },
+  alertItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 215, 0, 0.1)",
+  },
+  alertText: { flex: 1 },
+  alertTitle: {
+    color: "#FFD700",
+    fontSize: 13,
+    fontWeight: "700",
+    letterSpacing: 0.8,
+  },
+  alertMessage: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    marginTop: 4,
+    lineHeight: 17,
+  },
   tableRow: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: "rgba(255, 215, 0, 0.12)" },
   tableCell: { width: 98, color: "#FFF", fontSize: 11, paddingVertical: 10, paddingRight: 10 },
   tableHeaderCell: { color: "#FFD700", fontWeight: "bold" },
   emptyRow: { paddingVertical: 18 },
   emptyText: { color: "#AAA", fontSize: 12 },
-  chartContainer: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", height: 100 },
   powerChartContainer: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", minHeight: 130 },
   powerBarColumn: { alignItems: "center", flex: 1, marginHorizontal: 4 },
   powerBar: { width: 16, backgroundColor: "#FFD700", borderRadius: 6 },
@@ -446,8 +657,6 @@ const styles = StyleSheet.create({
   activityRoom: { color: "#FFD700", fontSize: 14, letterSpacing: 1.2, fontWeight: "700" },
   activityStatus: { color: "#FFF", fontSize: 12, marginTop: 4 },
   activityTime: { color: "#AAA", fontSize: 10, marginTop: 2 },
-  barColumn: { alignItems: "center", flex: 1 },
-  bar: { width: 6, backgroundColor: "#FFD700", borderRadius: 3 },
   barLabel: { color: "#555", fontSize: 9, marginTop: 8 },
   navBar: {
     flexDirection: "row",

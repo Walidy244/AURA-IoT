@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Device, Log, Permission, Alert
+from .models import User, Device, Log, Permission, Alert, LedControl, SensorData
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -43,3 +43,15 @@ class AlertSerializer(serializers.ModelSerializer):
         model = Alert
         fields = ['alert_id', 'device', 'alert_message', 'resolved', 'timestamp']
         read_only_fields = ['alert_id']
+
+class LedControlSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LedControl
+        fields = '__all__'
+        read_only_fields = ['id', 'updated_at']
+
+class SensorDataSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SensorData
+        fields = '__all__'
+        read_only_fields = ['sensor_id', 'timestamp']

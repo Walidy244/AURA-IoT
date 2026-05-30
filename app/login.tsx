@@ -16,6 +16,7 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
+import { getApiPath } from './api';
 
 const { width, height } = Dimensions.get('window');
 
@@ -26,18 +27,12 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const getApiBase = () => {
-    if (Platform.OS === 'web') return 'http://localhost:8000/';
-    return 'http://10.80.69.94:8000/';
-  };
-
   const handleLogin = async () => {
     try {
-      const base = getApiBase();
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
-      const res = await fetch(base + 'api/login/', {
+      const res = await fetch(getApiPath('api/login/'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: email, password }),

@@ -1,0 +1,17 @@
+# Django & DRF
+Django==6.0.4
+djangorestframework==3.14.0
+django-cors-headers==4.3.1
+psycopg2-binary==2.9.9
+
+# Celery & Redis
+celery==5.3.4
+redis==5.0.1
+
+# Utilities
+python-dotenv==1.0.0
+requests==2.31.0
+pytz==2023.3
+
+# Optional: Better async support
+gevent==23.9.1

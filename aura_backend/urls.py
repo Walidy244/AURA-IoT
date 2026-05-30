@@ -23,8 +23,12 @@ from iot_manager.views import (
     LogViewSet,
     PermissionViewSet,
     AlertViewSet,
+    LedControlViewSet,
+    SensorDataViewSet,
     register_api,
     login_api,
+    set_color,
+    get_color,
 )
 
 router = DefaultRouter()
@@ -33,10 +37,17 @@ router.register(r'devices', DeviceViewSet)
 router.register(r'logs', LogViewSet)
 router.register(r'permissions', PermissionViewSet)
 router.register(r'alerts', AlertViewSet)
+router.register(r'led', LedControlViewSet, basename='led')
+router.register(r'sensors', SensorDataViewSet, basename='sensor')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/', include(router.urls)),
+    # LED RGB endpoints (must come BEFORE router to take priority)
+    path('api/led/color', set_color),
+    path('api/led/state', get_color),
+    # Auth endpoints
     path('api/register/', register_api),
     path('api/login/', login_api),
+    # All other API routes (ViewSets)
+    path('api/', include(router.urls)),
 ]

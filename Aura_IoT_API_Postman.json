@@ -1,0 +1,287 @@
+{
+  "info": {
+    "name": "Aura IoT - LED & Sensor API",
+    "description": "Collection of API tests for LED control and sensor monitoring",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "LED Control",
+      "item": [
+        {
+          "name": "Get Current LED Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://10.80.69.94:8000/api/led/current/",
+              "protocol": "http",
+              "host": ["10", "80", "69", "94"],
+              "port": "8000",
+              "path": ["api", "led", "current", ""]
+            },
+            "description": "Get the current state of the LED including color, brightness, and timer settings"
+          }
+        },
+        {
+          "name": "Toggle LED On/Off",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "http://10.80.69.94:8000/api/led/toggle/",
+              "protocol": "http",
+              "host": ["10", "80", "69", "94"],
+              "port": "8000",
+              "path": ["api", "led", "toggle", ""]
+            },
+            "description": "Toggle LED between on and off state"
+          }
+        },
+        {
+          "name": "Set LED Color - Red",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"color\": \"red\", \"brightness\": 255}"
+            },
+            "url": {
+              "raw": "http://10.80.69.94:8000/api/led/set_color/",
+              "protocol": "http",
+              "host": ["10", "80", "69", "94"],
+              "port": "8000",
+              "path": ["api", "led", "set_color", ""]
+            },
+            "description": "Set LED to red color at full brightness"
+          }
+        },
+        {
+          "name": "Set LED Color - Blue",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"color\": \"blue\", \"brightness\": 200}"
+            },
+            "url": {
+              "raw": "http://10.80.69.94:8000/api/led/set_color/",
+              "protocol": "http",
+              "host": ["10", "80", "69", "94"],
+              "port": "8000",
+              "path": ["api", "led", "set_color", ""]
+            },
+            "description": "Set LED to blue color at 200 brightness"
+          }
+        },
+        {
+          "name": "Set LED Color - Green",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"color\": \"green\", \"brightness\": 150}"
+            },
+            "url": {
+              "raw": "http://10.80.69.94:8000/api/led/set_color/",
+              "protocol": "http",
+              "host": ["10", "80", "69", "94"],
+              "port": "8000",
+              "path": ["api", "led", "set_color", ""]
+            },
+            "description": "Set LED to green color at 150 brightness"
+          }
+        },
+        {
+          "name": "Turn LED Off",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"color\": \"off\", \"brightness\": 0}"
+            },
+            "url": {
+              "raw": "http://10.80.69.94:8000/api/led/set_color/",
+              "protocol": "http",
+              "host": ["10", "80", "69", "94"],
+              "port": "8000",
+              "path": ["api", "led", "set_color", ""]
+            },
+            "description": "Turn LED off"
+          }
+        },
+        {
+          "name": "Set LED Timer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"turn_on_at\": \"08:00\", \"turn_off_at\": \"18:00\", \"color\": \"white\"}"
+            },
+            "url": {
+              "raw": "http://10.80.69.94:8000/api/led/set_timer/",
+              "protocol": "http",
+              "host": ["10", "80", "69", "94"],
+              "port": "8000",
+              "path": ["api", "led", "set_timer", ""]
+            },
+            "description": "Set LED to turn on at 8:00 AM and off at 6:00 PM in white color"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sensor Data",
+      "item": [
+        {
+          "name": "Get Latest Sensor Reading",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://10.80.69.94:8000/api/sensors/latest/",
+              "protocol": "http",
+              "host": ["10", "80", "69", "94"],
+              "port": "8000",
+              "path": ["api", "sensors", "latest", ""]
+            },
+            "description": "Get the most recent DHT11 sensor reading"
+          }
+        },
+        {
+          "name": "Get Sensor Averages",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://10.80.69.94:8000/api/sensors/average/?limit=10",
+              "protocol": "http",
+              "host": ["10", "80", "69", "94"],
+              "port": "8000",
+              "path": ["api", "sensors", "average", ""],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Get average temperature and humidity for the last 10 readings"
+          }
+        },
+        {
+          "name": "List All Sensor Readings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://10.80.69.94:8000/api/sensors/?limit=10&ordering=-timestamp",
+              "protocol": "http",
+              "host": ["10", "80", "69", "94"],
+              "port": "8000",
+              "path": ["api", "sensors", ""],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "ordering",
+                  "value": "-timestamp"
+                }
+              ]
+            },
+            "description": "Get list of sensor readings with pagination and ordering"
+          }
+        },
+        {
+          "name": "Record New Sensor Reading",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"temperature\": 24.5, \"humidity\": 65.2}"
+            },
+            "url": {
+              "raw": "http://10.80.69.94:8000/api/sensors/record/",
+              "protocol": "http",
+              "host": ["10", "80", "69", "94"],
+              "port": "8000",
+              "path": ["api", "sensors", "record", ""]
+            },
+            "description": "Record a new DHT11 sensor reading from ESP32 or device"
+          }
+        },
+        {
+          "name": "Record Sensor Data - Temperature 22",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"temperature\": 22.0, \"humidity\": 60.0}"
+            },
+            "url": {
+              "raw": "http://10.80.69.94:8000/api/sensors/record/",
+              "protocol": "http",
+              "host": ["10", "80", "69", "94"],
+              "port": "8000",
+              "path": ["api", "sensors", "record", ""]
+            },
+            "description": "Record sensor reading with 22°C temperature"
+          }
+        }
+      ]
+    }
+  ]
+}

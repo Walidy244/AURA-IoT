@@ -56,6 +56,17 @@ export default function RoomsScreen() {
         }} 
       />
 
+      <View style={styles.pageHeader}>
+        <TouchableOpacity
+          onPress={() => router.replace("/")}
+          style={styles.pageBackButton}
+        >
+          <Ionicons name="chevron-back" size={28} color="#FFD700" />
+        </TouchableOpacity>
+        <Text style={styles.pageTitle}>Rooms</Text>
+        <View style={styles.pageHeaderSpacer} />
+      </View>
+
       <FlatList
         data={rooms}
         keyExtractor={(item) => item.id}
@@ -123,6 +134,31 @@ const styles = StyleSheet.create({
   },
   backButton: {
     marginLeft: Platform.OS === 'ios' ? 0 : -5,
+  },
+  pageHeader: {
+    paddingTop: Platform.OS === 'web' ? 24 : 48,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#FFD700',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  pageBackButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pageTitle: {
+    color: '#FFD700',
+    fontSize: 22,
+    fontWeight: '700',
+    letterSpacing: 2,
+  },
+  pageHeaderSpacer: {
+    width: 44,
   },
   listContent: { 
     padding: 15,

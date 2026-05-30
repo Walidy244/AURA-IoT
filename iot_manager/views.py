@@ -2,8 +2,10 @@ from rest_framework import viewsets, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db.models import Q
-from .models import User, Device, Log, Permission, Alert
-from .serializers import UserSerializer, DeviceSerializer, LogSerializer, PermissionSerializer, AlertSerializer
+from .models import User, Device, Log, Permission, Alert, LedControl, SensorData, LEDState
+from .serializers import (UserSerializer, DeviceSerializer, LogSerializer, 
+                          PermissionSerializer, AlertSerializer, LedControlSerializer, 
+                          SensorDataSerializer)
 from rest_framework.decorators import api_view
 from rest_framework import status
 from django.contrib.auth.hashers import make_password, check_password
@@ -51,6 +53,29 @@ def login_api(request):
     # simple success response; token/session management can be added later
     token = signing.dumps({'username': user.username})
     return Response({'detail': 'ok', 'username': user.username, 'token': token}, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+def set_color(request):
+    """Set RGB color. Expects JSON: { r, g, b }"""
+    try:
+        r = int(request.data.get('r', 0))
+        g = int(request.data.get('g', 0))
+        b = int(request.data.get('b', 0))
+    except (TypeError, ValueError):
+        return Response({'error': 'r,g,b must be integers'}, status=status.HTTP_400_BAD_REQUEST)
+
+    state, _ = LEDState.objects.get_or_create(id=1)
+    state.r, state.g, state.b = r, g, b
+    state.save()
+    return Response({'status': 'ok', 'r': state.r, 'g': state.g, 'b': state.b})
+
+
+@api_view(['GET'])
+def get_color(request):
+    """Return current RGB color."""
+    state, _ = LEDState.objects.get_or_create(id=1)
+    return Response({'r': state.r, 'g': state.g, 'b': state.b})
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
@@ -126,3 +151,104 @@ class AlertViewSet(viewsets.ModelViewSet):
         alerts = Alert.objects.filter(resolved=False).order_by('-timestamp')
         serializer = self.get_serializer(alerts, many=True)
         return Response(serializer.data)
+
+class LedControlViewSet(viewsets.ModelViewSet):
+    queryset = LedControl.objects.all()
+    serializer_class = LedControlSerializer
+    
+    @action(detail=False, methods=['get'])
+    def current(self, request):
+        """Get current LED status"""
+        led, created = LedControl.objects.get_or_create(id=1)
+        serializer = self.get_serializer(led)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['post'])
+    def toggle(self, request):
+        """Toggle LED on/off"""
+        led, created = LedControl.objects.get_or_create(id=1)
+        led.is_on = not led.is_on
+        led.save()
+        serializer = self.get_serializer(led)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['post'])
+    def set_color(self, request):
+        """Set LED color"""
+        color = request.data.get('color', 'off')
+        # brightness is accepted for compatibility but ignored if not stored in DB
+        _brightness = request.data.get('brightness', None)
+
+        led, created = LedControl.objects.get_or_create(id=1)
+        led.color = color
+        led.is_on = (color != 'off')
+        led.save()
+
+        serializer = self.get_serializer(led)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['post'])
+    def set_timer(self, request):
+        """Set LED timer"""
+        turn_on_at = request.data.get('turn_on_at')
+        turn_off_at = request.data.get('turn_off_at')
+        color = request.data.get('color', 'white')
+        led, created = LedControl.objects.get_or_create(id=1)
+        led.turn_on_at = turn_on_at
+        led.turn_off_at = turn_off_at
+        led.color = color
+        # Timer enabled is inferred from presence of both times
+        led.save()
+
+        serializer = self.get_serializer(led)
+        return Response({'status': 'timer set', 'led': serializer.data})
+
+class SensorDataViewSet(viewsets.ModelViewSet):
+    queryset = SensorData.objects.all().order_by('-timestamp')
+    serializer_class = SensorDataSerializer
+    filter_backends = [filters.OrderingFilter]
+    ordering_fields = ['timestamp', 'temperature', 'humidity']
+    ordering = ['-timestamp']
+    
+    @action(detail=False, methods=['get'])
+    def latest(self, request):
+        """Get the latest sensor reading"""
+        latest_reading = SensorData.objects.order_by('-timestamp').first()
+        if latest_reading:
+            serializer = self.get_serializer(latest_reading)
+            return Response(serializer.data)
+        return Response({})
+    
+    @action(detail=False, methods=['post'])
+    def record(self, request):
+        """Record a new sensor reading from DHT11"""
+        temperature = request.data.get('temperature')
+        humidity = request.data.get('humidity')
+        
+        if temperature is None or humidity is None:
+            return Response({'error': 'temperature and humidity required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        sensor_data = SensorData.objects.create(
+            temperature=temperature,
+            humidity=humidity
+        )
+        serializer = self.get_serializer(sensor_data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    @action(detail=False, methods=['get'])
+    def average(self, request):
+        """Get average temperature and humidity for last N readings"""
+        limit = request.query_params.get('limit', 10)
+        readings = SensorData.objects.order_by('-timestamp')[:int(limit)]
+        
+        if not readings:
+            return Response({'error': 'No readings available'}, status=status.HTTP_404_NOT_FOUND)
+        
+        avg_temp = sum(r.temperature for r in readings if r.temperature) / len(readings)
+        avg_humidity = sum(r.humidity for r in readings if r.humidity) / len(readings)
+        
+        return Response({
+            'average_temperature': avg_temp,
+            'average_humidity': avg_humidity,
+            'readings_count': len(readings)
+        })

@@ -40,6 +40,9 @@
         }
       ]
     ],
+    "extra": {
+      "apiUrl": "http://192.168.14.94:8080"
+    },
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true

@@ -15,6 +15,7 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
+import { getApiPath } from './api';
 
 const { width, height } = Dimensions.get('window');
 
@@ -27,11 +28,6 @@ export default function SignupScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  const getApiBase = () => {
-    if (Platform.OS === 'web') return 'http://localhost:8000/';
-    return 'http://10.1.1.49:8000/';
-  };
-
   const handleSignup = async () => {
     if (password !== confirmPassword) {
       alert('Passwords do not match');
@@ -39,8 +35,7 @@ export default function SignupScreen() {
     }
 
     try {
-      const base = getApiBase();
-      const res = await fetch(base + 'api/register/', {
+      const res = await fetch(getApiPath('api/register/'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: email, password }),
